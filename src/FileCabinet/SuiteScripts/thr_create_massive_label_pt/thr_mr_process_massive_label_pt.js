@@ -455,9 +455,17 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
                                 'custbody_th_generated_labels_pt': true
                             }
                         })
+                        reduceContext.write({
+                            key: 'nuevas',
+                            value: workOrder
+                        })
                     }
                 } else {
                     log.error('Ya se crearon ' + results.length + ' etiquetas');
+                    reduceContext.write({
+                        key: 'creadas',
+                        value: workOrder
+                    })
                 }
 
             } catch (error) {
@@ -487,11 +495,28 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
          */
         const summarize = (summaryContext) => {
             try {
+
+                let completeResult = [];
+                let planedResult = [];                 
+                summaryContext.output.iterator().each(function (key, value) {
+                    log.debug('keys desde el summary output', key)
+                    log.debug('value desde el summary output', value)
+                    if(key == 'nuevas'){
+                        completeResult.push(value);
+                    }else if(key == 'creadas'){
+                        planedResult.push(value);
+                    }
+
+                    return true;
+                });
+
                 record.submitFields({
                     type: 'customrecord_thr_gen_massive_label_pt',
                     id: runtime.getCurrentScript().getParameter('custscript_id_record_work'),
                     values: {
-                        'custrecord_thr_finished_labels': true
+                        'custrecord_thr_finished_labels': true,
+                        'custrecord_thr_was_create_label_pt' : completeResult,
+                        'custrecord_thr_was_pre_procces' : planedResult,
                     }
                 })
             } catch (error) {
