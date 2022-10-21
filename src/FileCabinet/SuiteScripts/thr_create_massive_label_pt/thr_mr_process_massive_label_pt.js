@@ -61,36 +61,7 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
                 log.debug('mapContext', mapContext);
                 let data = JSON.parse(mapContext.value);
 
-                mapContext.write({
-                    key: data.value,
-                    value: data
-                });
-            } catch (error) {
-                log.debug('error map', error);
-            }
-
-        }
-
-        /**
-         * Defines the function that is executed when the reduce entry point is triggered. This entry point is triggered
-         * automatically when the associated map stage is complete. This function is applied to each group in the provided context.
-         * @param {Object} reduceContext - Data collection containing the groups to process in the reduce stage. This parameter is
-         *     provided automatically based on the results of the map stage.
-         * @param {Iterator} reduceContext.errors - Serialized errors that were thrown during previous attempts to execute the
-         *     reduce function on the current group
-         * @param {number} reduceContext.executionNo - Number of times the reduce function has been executed on the current group
-         * @param {boolean} reduceContext.isRestarted - Indicates whether the current invocation of this function is the first
-         *     invocation (if true, the current invocation is not the first invocation and this function has been restarted)
-         * @param {string} reduceContext.key - Key to be processed during the reduce stage
-         * @param {List<String>} reduceContext.values - All values associated with a unique key that was passed to the reduce stage
-         *     for processing
-         * @since 2015.2
-         */
-        const reduce = (reduceContext) => {
-            log.debug('reduceContext', reduceContext);
-            let data = JSON.parse(reduceContext.values[0]);
-            log.debug('data reduce', data);
-            try {
+                log.debug('data', data)
                 var newRecord = record.load({
                     type: record.Type.WORK_ORDER,
                     id: data.value,
@@ -203,7 +174,7 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
                     columns: sColumns,
                     filters: sFilters
                 }).run().getRange(0, 10);
-                //log.debug("compSearch", compSearch);
+                log.debug("compSearch", compSearch);
 
                 // OBJETO PARA CREAR ETIQUETAS
 
@@ -216,13 +187,49 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
                     customer: customer,
                     // dBolsa :dBolsa,
                     dateLabel: dateLabel,
-                    quantity: quantity
+                    quantity: quantity,
+                    date : date,
+                    trandId : trandId,
+                    results : results,
+                    compSearch : compSearch,
+                    tipoEtiqueta : tipoEtiqueta
+
                 };
 
                 log.debug("quantity", ordenObj);
-                //log.debug('ordenObj', ordenObj)
 
-                if (results.length == 0) {
+                mapContext.write({
+                    key: data.value,
+                    value: ordenObj
+                });
+            } catch (error) {
+                log.debug('error map', error);
+            }
+
+        }
+
+        /**
+         * Defines the function that is executed when the reduce entry point is triggered. This entry point is triggered
+         * automatically when the associated map stage is complete. This function is applied to each group in the provided context.
+         * @param {Object} reduceContext - Data collection containing the groups to process in the reduce stage. This parameter is
+         *     provided automatically based on the results of the map stage.
+         * @param {Iterator} reduceContext.errors - Serialized errors that were thrown during previous attempts to execute the
+         *     reduce function on the current group
+         * @param {number} reduceContext.executionNo - Number of times the reduce function has been executed on the current group
+         * @param {boolean} reduceContext.isRestarted - Indicates whether the current invocation of this function is the first
+         *     invocation (if true, the current invocation is not the first invocation and this function has been restarted)
+         * @param {string} reduceContext.key - Key to be processed during the reduce stage
+         * @param {List<String>} reduceContext.values - All values associated with a unique key that was passed to the reduce stage
+         *     for processing
+         * @since 2015.2
+         */
+        const reduce = (reduceContext) => {
+            log.debug('reduceContext', reduceContext);
+            let ordenObj = JSON.parse(reduceContext.values[0]);
+            log.debug('ordenObj reduce', ordenObj);
+            try {               
+                //Fixed//
+                if (ordenObj.results.length == 0) {
                     //CREAR REGISTRO ETIQUETAS
                     //
                     var result = search.create({
@@ -249,7 +256,7 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
                     // log.debug("idInterno: ", conteoIdInterno)
 
                     //------ Inicia busqueda nueva
-                    var consecutivo = date + tipoEtiqueta;
+                    var consecutivo = ordenObj.date + ordenObj.tipoEtiqueta;
                     var result1 = search.create({
                         type: 'customrecord_trp_etiquetas',
                         filters: [
@@ -337,12 +344,12 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
                     // NUMERO DE SERIE-----------------------------------------------------------------
                     // var arraySerie = [];
                     var contConsecutivo = 0;
-                    for (var i = 1; i <= quantity; i++) {
+                    for (var i = 1; i <= ordenObj.quantity; i++) {
                         // log.debug("FOR: ", currentUser.getRemainingUsage())
                         // log.debug("i: ", i)
                         var sec = '0000' + sumaconteo;
                         sec = sec.substring(sec.length - 4, sec.length);
-                        var nSerie = date + tipoEtiqueta + sec;
+                        var nSerie = ordenObj.date + ordenObj.tipoEtiqueta + sec;
                         contConsecutivo++;
                         log.debug("Etiqueta", nSerie);
                         //  arraySerie.push({nSerie : nSerie, contConsecutivo : contConsecutivo })
@@ -372,7 +379,7 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
                         });
                         createLabel.setValue({
                             fieldId: 'custrecord_trp_f_ingreso',
-                            value: ordenObj.fecha
+                            value: new Date(ordenObj.fecha)
                         });
                         createLabel.setValue({
                             fieldId: 'custrecord_trp_sku',
@@ -380,23 +387,17 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
                         });
                         createLabel.setValue({
                             fieldId: 'custrecord_trp_fe_etiqueta_pt',
-                            value: ordenObj.dateLabel
+                            value: new Date(ordenObj.dateLabel)
                         });
                         createLabel.setValue({
                             fieldId: 'custrecord_trp_tot_etiquetas',
                             value: ordenObj.quantity
                         });
-                        if (compSearch.length > 0) {
-                            for (var r = 0; r < compSearch.length; r++) {
-                                var numeroOP = compSearch[r].getValue({
-                                    name: 'custrecord_trp_numero_op'
-                                });
-                                var NomOp = compSearch[r].getText({
-                                    name: 'custrecord_trp_nombre_operacion'
-                                });
-                                var secuenciaId = compSearch[r].getValue({
-                                    name: 'custrecord_trp_secuencia_op'
-                                });
+                        if (ordenObj.compSearch.length > 0) {
+                            for (var r = 0; r < ordenObj.compSearch.length; r++) {                                
+                                var numeroOP = ordenObj.compSearch[r].values.custrecord_trp_numero_op                               
+                                var NomOp = ordenObj.compSearch[r].values.custrecord_trp_nombre_operacion[0].text                               
+                                var secuenciaId = ordenObj.compSearch[r].values.custrecord_trp_secuencia_op
                                 var idProceso = "custrecord_trp_id_proceso_" + secuenciaId;
                                 var nombreOp = "custrecordtrp_nombre_proces_" + secuenciaId;
                                 // log.debug("ID Proceso: ", idProceso + 'ID: ' + numeroOP )
@@ -436,37 +437,41 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
                         sumaconteo++;
                         log.debug("contConsecutivo: ", contConsecutivo);
                     }
-                    if (contConsecutivo == quantity) {
+                    if (contConsecutivo == ordenObj.quantity) {
                         log.debug("contConsecutivo Final: ", contConsecutivo);
-                        let id = email.send({
-                            //author: 1729,
-                            author: 2039,
-                            //recipients: ['christian.canul@disruptt.mx'],
-                            recipients: 2039,
-                            subject: 'Orden de trabajo generada',
-                            body: `La siguiente Orden de Trabajo ha sido procesada por completo ${trandId}`
+                        // let id = email.send({
+                        //     //author: 1729,
+                        //     author: 2039,
+                        //     //recipients: ['christian.canul@disruptt.mx'],
+                        //     recipients: 2039,
+                        //     subject: 'Orden de trabajo generada',
+                        //     body: `La siguiente Orden de Trabajo ha sido procesada por completo ${ordenObj.trandId}`
 
-                        });
-                        log.audit("email success", id)
+                        // });
+                        //log.audit("email success", id)
                         record.submitFields({
                             type: record.Type.WORK_ORDER,
-                            id: workOrder,
+                            id: ordenObj.workOrder,
                             values: {
                                 'custbody_th_generated_labels_pt': true
                             }
                         })
+
+                        let remainingUsage = runtime.getCurrentScript().getRemainingUsage();
+                        log.debug(`remaingin reduce ${ordenObj.trandId}`, remainingUsage);
                         reduceContext.write({
                             key: 'nuevas',
-                            value: workOrder
+                            value: ordenObj.workOrder
                         })
                     }
                 } else {
                     log.error('Ya se crearon ' + results.length + ' etiquetas');
                     reduceContext.write({
                         key: 'creadas',
-                        value: workOrder
+                        value: ordenObj.workOrder
                     })
                 }
+                //Fixed
 
             } catch (error) {
                 log.debug('error reduce', error);
@@ -497,13 +502,13 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
             try {
 
                 let completeResult = [];
-                let planedResult = [];                 
+                let planedResult = [];
                 summaryContext.output.iterator().each(function (key, value) {
                     log.debug('keys desde el summary output', key)
                     log.debug('value desde el summary output', value)
-                    if(key == 'nuevas'){
+                    if (key == 'nuevas') {
                         completeResult.push(value);
-                    }else if(key == 'creadas'){
+                    } else if (key == 'creadas') {
                         planedResult.push(value);
                     }
 
@@ -515,8 +520,8 @@ define(['N/email', 'N/file', 'N/record', 'N/runtime', 'N/search'],
                     id: runtime.getCurrentScript().getParameter('custscript_id_record_work'),
                     values: {
                         'custrecord_thr_finished_labels': true,
-                        'custrecord_thr_was_create_label_pt' : completeResult,
-                        'custrecord_thr_was_pre_procces' : planedResult,
+                        'custrecord_thr_was_create_label_pt': completeResult,
+                        'custrecord_thr_was_pre_procces': planedResult,
                     }
                 })
             } catch (error) {
